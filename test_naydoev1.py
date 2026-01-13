@@ -11,6 +11,12 @@ from naydoev1 import (
 )
 
 
+# Test Constants
+LARGE_CODE_SIZE = 500
+MAX_PROCESSING_TIME_MS = 5000  # 5 seconds
+SCENARIO_BENCHMARK_TIME_MS = 2000  # 2 seconds
+
+
 class TestKnowledgeBase(unittest.TestCase):
     """Test the KnowledgeBase component"""
     
@@ -130,7 +136,7 @@ class TestRealtimeUpdateEngine(unittest.TestCase):
     
     def test_suggestion_generation(self):
         """Test that suggestions are generated"""
-        code = "x = 1\n" * 500  # Large code block
+        code = "x = 1\n" * LARGE_CODE_SIZE  # Large code block
         suggestions = self.engine.analyze_and_suggest(code, "python")
         
         self.assertGreater(len(suggestions), 0)
@@ -176,7 +182,7 @@ class TestNayDoeV1Integration(unittest.TestCase):
         elapsed_ms = (time.time() - start) * 1000
         
         self.assertTrue(result["success"])
-        self.assertLess(elapsed_ms, 5000)  # Should complete within 5 seconds
+        self.assertLess(elapsed_ms, MAX_PROCESSING_TIME_MS)  # Should complete within threshold
     
     def test_process_code_completeness(self):
         """Test that code processing returns complete results"""
@@ -238,8 +244,8 @@ class TestPerformanceBenchmarks(unittest.TestCase):
         code = "x = 1"
         result = self.assistant.process_code(code, "python")
         
-        # Response time should be reasonable (under 2 seconds for 40 scenarios)
-        self.assertLess(result["processing_time_ms"], 2000)
+        # Response time should be reasonable (under threshold for 40 scenarios)
+        self.assertLess(result["processing_time_ms"], SCENARIO_BENCHMARK_TIME_MS)
     
     def test_40_scenarios_generated(self):
         """Test that exactly 40 scenarios are always generated"""

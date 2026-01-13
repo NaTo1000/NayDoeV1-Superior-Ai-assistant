@@ -14,6 +14,15 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 
 
+# Configuration Constants
+SCENARIO_BASE_PROBABILITY = 0.5
+SCENARIO_PROBABILITY_RANGE = 0.4
+CODE_COMPLEXITY_THRESHOLD = 1000
+COMPLEXITY_PENALTY_FACTOR = 0.2
+MARKER_ID_LENGTH = 16
+LARGE_CODE_THRESHOLD = 1000
+
+
 class LanguageSupport(Enum):
     """Comprehensive language support enumeration"""
     PYTHON = "python"
@@ -169,9 +178,9 @@ class TwinBrain:
     
     def _calculate_probability(self, code: str, variant: int) -> float:
         """Calculate probability for scenario success"""
-        base_probability = 0.5 + (variant / self.scenario_count) * 0.4
-        code_complexity = min(len(code) / 1000, 1.0)
-        return round(base_probability * (1 - code_complexity * 0.2), 3)
+        base_probability = SCENARIO_BASE_PROBABILITY + (variant / self.scenario_count) * SCENARIO_PROBABILITY_RANGE
+        code_complexity = min(len(code) / CODE_COMPLEXITY_THRESHOLD, 1.0)
+        return round(base_probability * (1 - code_complexity * COMPLEXITY_PENALTY_FACTOR), 3)
     
     def _generate_optimization(self, code: str, variant: int) -> str:
         """Generate optimized solution variant"""
@@ -223,7 +232,7 @@ class RollbackSystem:
     def create_marker(self, description: str, code_state: Dict[str, str]) -> str:
         """Create a new rollback marker"""
         timestamp = time.time()
-        marker_id = hashlib.sha256(f"{description}{timestamp}".encode()).hexdigest()[:16]
+        marker_id = hashlib.sha256(f"{description}{timestamp}".encode()).hexdigest()[:MARKER_ID_LENGTH]
         
         marker = RollbackMarker(
             marker_id=marker_id,
@@ -284,7 +293,7 @@ class RealtimeUpdateEngine:
         timestamp = time.time()
         
         # Check for common issues
-        if len(code) > 1000:
+        if len(code) > LARGE_CODE_THRESHOLD:
             suggestions.append(Suggestion(
                 suggestion_id=f"sug_{int(timestamp * 1000)}_1",
                 timestamp=timestamp,
