@@ -1,0 +1,8 @@
+# NayDoeV1 Superior AI Assistant Requirements
+# No external dependencies required for core functionality
+# All features implemented using Python standard library
+
+# Optional dependencies for enhanced functionality:
+# pytest>=7.0.0  # For running tests
+# black>=22.0.0  # For code formatting
+# pylint>=2.12.0  # For code quality checks
