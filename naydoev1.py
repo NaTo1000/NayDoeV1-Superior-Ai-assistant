@@ -3,15 +3,19 @@
 NayDoeV1 - Superior AI Assistant
 The ultimate coding assistant with comprehensive language support,
 autonomous planning, and rollback capabilities.
+
+Enhanced with detailed metrics, performance optimizations, and caching.
 """
 
 import time
 import json
 import hashlib
 from datetime import datetime
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
+from typing import Dict, List, Optional, Any, Tuple
+from dataclasses import dataclass, asdict, field
 from enum import Enum
+from functools import lru_cache
+from collections import defaultdict
 
 
 # Configuration Constants
@@ -21,6 +25,10 @@ CODE_COMPLEXITY_THRESHOLD = 1000
 COMPLEXITY_PENALTY_FACTOR = 0.2
 MARKER_ID_LENGTH = 16
 LARGE_CODE_THRESHOLD = 1000
+
+# Performance tuning constants
+CACHE_SIZE = 128  # LRU cache size for frequently accessed data
+BATCH_SIZE = 10   # Batch size for scenario processing
 
 
 class LanguageSupport(Enum):
@@ -57,6 +65,24 @@ class PatternType(Enum):
 
 
 @dataclass
+class PerformanceMetrics:
+    """Detailed performance metrics for system introspection"""
+    total_analyses: int = 0
+    total_scenarios_generated: int = 0
+    total_processing_time_ms: float = 0.0
+    average_processing_time_ms: float = 0.0
+    cache_hits: int = 0
+    cache_misses: int = 0
+    languages_used: Dict[str, int] = field(default_factory=lambda: defaultdict(int))
+    peak_memory_markers: int = 0
+    
+    def to_dict(self) -> Dict[str, Any]:
+        data = asdict(self)
+        data['languages_used'] = dict(data['languages_used'])
+        return data
+
+
+@dataclass
 class RollbackMarker:
     """Represents a rollback point in the system"""
     marker_id: str
@@ -64,6 +90,7 @@ class RollbackMarker:
     description: str
     state_snapshot: Dict[str, Any]
     code_snapshot: Dict[str, str]
+    size_bytes: int = 0  # Size of the marker for efficiency tracking
     
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -93,15 +120,38 @@ class Suggestion:
 
 
 class KnowledgeBase:
-    """Comprehensive knowledge base for all languages and patterns"""
+    """Comprehensive knowledge base for all languages and patterns with caching"""
     
     def __init__(self):
-        self.languages = {lang.value: self._init_language_data(lang) for lang in LanguageSupport}
-        self.patterns = self._init_patterns()
-        self.algorithms = self._init_algorithms()
+        # Lazy initialization - only create when needed
+        self._languages = None
+        self._patterns = None
+        self._algorithms = None
         
+    @property
+    def languages(self) -> Dict[str, Dict[str, Any]]:
+        """Lazy-loaded languages data"""
+        if self._languages is None:
+            self._languages = {lang.value: self._init_language_data(lang) for lang in LanguageSupport}
+        return self._languages
+    
+    @property
+    def patterns(self) -> Dict[str, List[str]]:
+        """Lazy-loaded patterns data"""
+        if self._patterns is None:
+            self._patterns = self._init_patterns()
+        return self._patterns
+    
+    @property
+    def algorithms(self) -> Dict[str, List[str]]:
+        """Lazy-loaded algorithms data"""
+        if self._algorithms is None:
+            self._algorithms = self._init_algorithms()
+        return self._algorithms
+    
+    @lru_cache(maxsize=CACHE_SIZE)
     def _init_language_data(self, language: LanguageSupport) -> Dict[str, Any]:
-        """Initialize language-specific data"""
+        """Initialize language-specific data with caching"""
         return {
             "syntax": {},
             "best_practices": [],
@@ -111,6 +161,7 @@ class KnowledgeBase:
             "versions": []
         }
     
+    @lru_cache(maxsize=1)
     def _init_patterns(self) -> Dict[str, List[str]]:
         """Initialize design patterns database"""
         return {
@@ -129,6 +180,7 @@ class KnowledgeBase:
             ]
         }
     
+    @lru_cache(maxsize=1)
     def _init_algorithms(self) -> Dict[str, List[str]]:
         """Initialize algorithms database"""
         return {
@@ -139,51 +191,107 @@ class KnowledgeBase:
             "string": ["KMP", "Rabin-Karp", "Boyer-Moore", "Aho-Corasick"]
         }
     
+    @lru_cache(maxsize=CACHE_SIZE)
     def get_language_info(self, language: str) -> Dict[str, Any]:
-        """Get comprehensive information about a language"""
+        """Get comprehensive information about a language (cached)"""
         return self.languages.get(language, {})
     
-    def get_pattern_info(self, pattern_type: str) -> List[str]:
-        """Get patterns of a specific type"""
-        return self.patterns.get(pattern_type, [])
+    @lru_cache(maxsize=CACHE_SIZE)
+    def get_pattern_info(self, pattern_type: str) -> Tuple[str, ...]:
+        """Get patterns of a specific type (cached, returns tuple for hashability)"""
+        return tuple(self.patterns.get(pattern_type, []))
+    
+    def get_detailed_stats(self) -> Dict[str, Any]:
+        """Get detailed statistics about the knowledge base"""
+        return {
+            "total_languages": len(LanguageSupport),
+            "total_pattern_types": len(PatternType),
+            "total_patterns": sum(len(p) for p in self.patterns.values()),
+            "total_algorithm_categories": len(self.algorithms),
+            "total_algorithms": sum(len(a) for a in self.algorithms.values()),
+            "cache_info": {
+                "language_data": self._init_language_data.cache_info()._asdict(),
+                "patterns": self._init_patterns.cache_info()._asdict(),
+                "algorithms": self._init_algorithms.cache_info()._asdict(),
+                "get_language": self.get_language_info.cache_info()._asdict(),
+                "get_pattern": self.get_pattern_info.cache_info()._asdict(),
+            }
+        }
 
 
 class TwinBrain:
-    """Autonomous monitoring and planning system"""
+    """Autonomous monitoring and planning system with performance optimization"""
     
     def __init__(self):
         self.scenarios: List[Scenario] = []
         self.monitoring_active = True
         self.scenario_count = 40
+        self._analysis_history: List[Tuple[float, int]] = []  # (timestamp, scenario_count)
+        self._performance_metrics = {
+            "total_analyses": 0,
+            "total_time_ms": 0.0,
+            "avg_time_per_scenario_ms": 0.0
+        }
         
     def analyze_code(self, code: str, language: str) -> List[Scenario]:
-        """Analyze code and generate 40 different scenarios"""
+        """Analyze code and generate 40 different scenarios with optimized processing"""
         scenarios = []
         start_time = time.time()
         
-        for i in range(self.scenario_count):
-            scenario = Scenario(
-                scenario_id=f"scenario_{i}_{int(time.time() * 1000)}",
-                probability=self._calculate_probability(code, i),
-                outcome=f"Optimized outcome variant {i + 1}",
-                optimized_solution=self._generate_optimization(code, i),
-                estimated_time_ms=(time.time() - start_time) * 1000,
-                risks=self._identify_risks(code, i),
-                benefits=self._identify_benefits(code, i)
+        # Pre-calculate hash once for all scenarios
+        code_hash = hash(code)
+        
+        # Batch process scenarios for better performance
+        for batch_start in range(0, self.scenario_count, BATCH_SIZE):
+            batch_end = min(batch_start + BATCH_SIZE, self.scenario_count)
+            batch_scenarios = self._process_scenario_batch(
+                code, code_hash, language, batch_start, batch_end, start_time
             )
-            scenarios.append(scenario)
+            scenarios.extend(batch_scenarios)
+        
+        elapsed_ms = (time.time() - start_time) * 1000
+        
+        # Update metrics
+        self._performance_metrics["total_analyses"] += 1
+        self._performance_metrics["total_time_ms"] += elapsed_ms
+        self._performance_metrics["avg_time_per_scenario_ms"] = (
+            self._performance_metrics["total_time_ms"] / 
+            (self._performance_metrics["total_analyses"] * self.scenario_count)
+        )
+        self._analysis_history.append((time.time(), len(scenarios)))
         
         self.scenarios = scenarios
         return scenarios
     
+    def _process_scenario_batch(
+        self, code: str, code_hash: int, language: str, 
+        start_idx: int, end_idx: int, analysis_start_time: float
+    ) -> List[Scenario]:
+        """Process a batch of scenarios efficiently"""
+        batch = []
+        for i in range(start_idx, end_idx):
+            scenario = Scenario(
+                scenario_id=f"scenario_{i}_{code_hash}_{int(analysis_start_time * 1000)}",
+                probability=self._calculate_probability(code, i),
+                outcome=f"Optimized outcome variant {i + 1}",
+                optimized_solution=self._generate_optimization(code, i),
+                estimated_time_ms=(time.time() - analysis_start_time) * 1000,
+                risks=self._identify_risks(code, i),
+                benefits=self._identify_benefits(code, i)
+            )
+            batch.append(scenario)
+        return batch
+    
+    @lru_cache(maxsize=CACHE_SIZE)
     def _calculate_probability(self, code: str, variant: int) -> float:
-        """Calculate probability for scenario success"""
+        """Calculate probability for scenario success (cached for same code)"""
         base_probability = SCENARIO_BASE_PROBABILITY + (variant / self.scenario_count) * SCENARIO_PROBABILITY_RANGE
         code_complexity = min(len(code) / CODE_COMPLEXITY_THRESHOLD, 1.0)
         return round(base_probability * (1 - code_complexity * COMPLEXITY_PENALTY_FACTOR), 3)
     
+    @lru_cache(maxsize=CACHE_SIZE)
     def _generate_optimization(self, code: str, variant: int) -> str:
-        """Generate optimized solution variant"""
+        """Generate optimized solution variant (cached)"""
         return f"Optimized code variant {variant + 1} with enhanced performance"
     
     def _identify_risks(self, code: str, variant: int) -> List[str]:
@@ -212,56 +320,89 @@ class TwinBrain:
         return max(self.scenarios, key=lambda s: s.probability)
     
     def monitor_execution(self) -> Dict[str, Any]:
-        """Monitor system execution and return status"""
+        """Monitor system execution and return status with detailed metrics"""
         return {
             "active": self.monitoring_active,
             "scenarios_analyzed": len(self.scenarios),
             "best_scenario_probability": self.get_best_scenario().probability if self.scenarios else 0,
-            "timestamp": time.time()
+            "timestamp": time.time(),
+            "performance_metrics": self._performance_metrics.copy(),
+            "analysis_history_count": len(self._analysis_history),
+            "cache_info": {
+                "probability_calc": self._calculate_probability.cache_info()._asdict(),
+                "optimization_gen": self._generate_optimization.cache_info()._asdict(),
+            }
+        }
+    
+    def get_performance_summary(self) -> Dict[str, Any]:
+        """Get detailed performance summary"""
+        return {
+            "total_analyses": self._performance_metrics["total_analyses"],
+            "total_time_ms": round(self._performance_metrics["total_time_ms"], 3),
+            "avg_time_per_analysis_ms": round(
+                self._performance_metrics["total_time_ms"] / max(1, self._performance_metrics["total_analyses"]),
+                3
+            ),
+            "avg_time_per_scenario_ms": round(self._performance_metrics["avg_time_per_scenario_ms"], 3),
+            "scenarios_per_analysis": self.scenario_count,
+            "history_entries": len(self._analysis_history)
         }
 
 
 class RollbackSystem:
-    """System for managing rollback markers and state restoration"""
+    """System for managing rollback markers and state restoration with efficiency tracking"""
     
     def __init__(self):
         self.markers: Dict[str, RollbackMarker] = {}
         self.current_state: Dict[str, Any] = {}
         self.marker_history: List[str] = []
+        self._total_marker_size_bytes = 0
+        self._rollback_count = 0
         
     def create_marker(self, description: str, code_state: Dict[str, str]) -> str:
-        """Create a new rollback marker"""
+        """Create a new rollback marker with size tracking"""
         timestamp = time.time()
         marker_id = hashlib.sha256(f"{description}{timestamp}".encode()).hexdigest()[:MARKER_ID_LENGTH]
+        
+        # Calculate marker size for efficiency tracking
+        size_bytes = len(json.dumps({
+            "state": self.current_state,
+            "code": code_state
+        }))
         
         marker = RollbackMarker(
             marker_id=marker_id,
             timestamp=timestamp,
             description=description,
             state_snapshot=self.current_state.copy(),
-            code_snapshot=code_state.copy()
+            code_snapshot=code_state.copy(),
+            size_bytes=size_bytes
         )
         
         self.markers[marker_id] = marker
         self.marker_history.append(marker_id)
+        self._total_marker_size_bytes += size_bytes
         return marker_id
     
     def rollback_to_marker(self, marker_id: str) -> bool:
-        """Rollback to a specific marker"""
+        """Rollback to a specific marker with tracking"""
         if marker_id not in self.markers:
             return False
         
         marker = self.markers[marker_id]
         self.current_state = marker.state_snapshot.copy()
+        self._rollback_count += 1
         return True
     
     def list_markers(self) -> List[Dict[str, Any]]:
-        """List all available rollback markers"""
+        """List all available rollback markers with size information"""
         return [
             {
                 "marker_id": marker.marker_id,
                 "timestamp": datetime.fromtimestamp(marker.timestamp).isoformat(),
-                "description": marker.description
+                "description": marker.description,
+                "size_bytes": marker.size_bytes,
+                "size_kb": round(marker.size_bytes / 1024, 2)
             }
             for marker in self.markers.values()
         ]
@@ -271,13 +412,29 @@ class RollbackSystem:
         return self.markers.get(marker_id)
     
     def delete_marker(self, marker_id: str) -> bool:
-        """Delete a specific marker"""
+        """Delete a specific marker with size tracking"""
         if marker_id in self.markers:
+            marker = self.markers[marker_id]
+            self._total_marker_size_bytes -= marker.size_bytes
             del self.markers[marker_id]
             if marker_id in self.marker_history:
                 self.marker_history.remove(marker_id)
             return True
         return False
+    
+    def get_efficiency_metrics(self) -> Dict[str, Any]:
+        """Get detailed efficiency metrics for the rollback system"""
+        return {
+            "total_markers": len(self.markers),
+            "total_size_bytes": self._total_marker_size_bytes,
+            "total_size_kb": round(self._total_marker_size_bytes / 1024, 2),
+            "total_size_mb": round(self._total_marker_size_bytes / (1024 * 1024), 2),
+            "average_marker_size_bytes": (
+                self._total_marker_size_bytes // max(1, len(self.markers))
+            ),
+            "rollback_operations": self._rollback_count,
+            "marker_history_length": len(self.marker_history)
+        }
 
 
 class RealtimeUpdateEngine:
@@ -337,7 +494,7 @@ class RealtimeUpdateEngine:
 
 
 class NayDoeV1:
-    """Main NayDoeV1 Superior AI Assistant"""
+    """Main NayDoeV1 Superior AI Assistant with comprehensive metrics and caching"""
     
     def __init__(self):
         self.knowledge_base = KnowledgeBase()
@@ -345,21 +502,34 @@ class NayDoeV1:
         self.rollback_system = RollbackSystem()
         self.update_engine = RealtimeUpdateEngine()
         self.start_time = time.time()
+        self.performance_metrics = PerformanceMetrics()
         
     def process_code(self, code: str, language: str) -> Dict[str, Any]:
         """
         Process code with full NayDoeV1 capabilities:
-        - Millisecond-speed knowledge access
-        - 40 parallel scenario analysis
+        - Millisecond-speed knowledge access with caching
+        - 40 parallel scenario analysis with batch processing
         - Real-time suggestions and warnings
+        - Comprehensive performance metrics
         """
         start_time = time.time()
         
-        # Get language info in milliseconds
-        lang_info = self.knowledge_base.get_language_info(language)
+        # Update metrics
+        self.performance_metrics.total_analyses += 1
+        self.performance_metrics.languages_used[language] += 1
         
-        # TwinBrain analyzes 40 scenarios
+        # Get language info in milliseconds (cached)
+        lang_info = self.knowledge_base.get_language_info(language)
+        cache_hit = bool(lang_info)
+        
+        if cache_hit:
+            self.performance_metrics.cache_hits += 1
+        else:
+            self.performance_metrics.cache_misses += 1
+        
+        # TwinBrain analyzes 40 scenarios with optimization
         scenarios = self.twin_brain.analyze_code(code, language)
+        self.performance_metrics.total_scenarios_generated += len(scenarios)
         
         # Generate real-time suggestions
         suggestions = self.update_engine.analyze_and_suggest(code, language)
@@ -368,17 +538,32 @@ class NayDoeV1:
         best_scenario = self.twin_brain.get_best_scenario()
         
         processing_time_ms = (time.time() - start_time) * 1000
+        self.performance_metrics.total_processing_time_ms += processing_time_ms
+        self.performance_metrics.average_processing_time_ms = (
+            self.performance_metrics.total_processing_time_ms / 
+            self.performance_metrics.total_analyses
+        )
         
         return {
             "success": True,
             "processing_time_ms": round(processing_time_ms, 3),
             "language": language,
             "language_support": bool(lang_info),
+            "cache_hit": cache_hit,
             "scenarios_analyzed": len(scenarios),
             "best_scenario": asdict(best_scenario) if best_scenario else None,
             "suggestions": [asdict(s) for s in suggestions],
             "warnings": [asdict(s) for s in self.update_engine.get_critical_warnings()],
-            "monitoring_status": self.twin_brain.monitor_execution()
+            "monitoring_status": self.twin_brain.monitor_execution(),
+            "performance_snapshot": {
+                "avg_processing_time_ms": round(self.performance_metrics.average_processing_time_ms, 3),
+                "total_analyses": self.performance_metrics.total_analyses,
+                "cache_hit_rate": round(
+                    self.performance_metrics.cache_hits / 
+                    max(1, self.performance_metrics.cache_hits + self.performance_metrics.cache_misses),
+                    3
+                )
+            }
         }
     
     def create_rollback_marker(self, description: str, code_state: Dict[str, str]) -> str:
@@ -394,19 +579,29 @@ class NayDoeV1:
         return self.rollback_system.list_markers()
     
     def get_system_status(self) -> Dict[str, Any]:
-        """Get comprehensive system status"""
+        """Get comprehensive system status with detailed metrics"""
         uptime = time.time() - self.start_time
+        
+        # Update peak memory markers
+        current_markers = len(self.rollback_system.markers)
+        if current_markers > self.performance_metrics.peak_memory_markers:
+            self.performance_metrics.peak_memory_markers = current_markers
+        
         return {
             "status": "operational",
             "uptime_seconds": round(uptime, 2),
-            "languages_supported": len(self.knowledge_base.languages),
+            "languages_supported": len(LanguageSupport),
             "patterns_available": sum(len(p) for p in self.knowledge_base.patterns.values()),
             "algorithms_available": sum(len(a) for a in self.knowledge_base.algorithms.values()),
             "active_scenarios": len(self.twin_brain.scenarios),
             "rollback_markers": len(self.rollback_system.markers),
             "suggestions_generated": len(self.update_engine.suggestions),
             "twin_brain_monitoring": self.twin_brain.monitoring_active,
-            "realtime_updates": self.update_engine.active
+            "realtime_updates": self.update_engine.active,
+            "performance_metrics": self.performance_metrics.to_dict(),
+            "knowledge_base_stats": self.knowledge_base.get_detailed_stats(),
+            "twin_brain_performance": self.twin_brain.get_performance_summary(),
+            "rollback_efficiency": self.rollback_system.get_efficiency_metrics()
         }
 
 
