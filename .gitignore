@@ -46,6 +46,12 @@ htmlcov/
 *.tmp
 *.bak
 
+# Autonomous system logs and audits
+logs/
+audits/
+error_analysis/
+optimizations/
+
 # Object file
 *.o
 

@@ -4,7 +4,8 @@ NayDoeV1 - Superior AI Assistant
 The ultimate coding assistant with comprehensive language support,
 autonomous planning, and rollback capabilities.
 
-Enhanced with detailed metrics, performance optimizations, and caching.
+Enhanced with detailed metrics, performance optimizations, caching,
+internal logging, auditing, error analysis, self-healing, and self-optimization.
 """
 
 import time
@@ -16,6 +17,14 @@ from dataclasses import dataclass, asdict, field
 from enum import Enum
 from functools import lru_cache
 from collections import defaultdict
+
+# Import autonomous system
+try:
+    from autonomous_system import get_autonomous_system, LogLevel
+    AUTONOMOUS_AVAILABLE = True
+except ImportError:
+    AUTONOMOUS_AVAILABLE = False
+    LogLevel = None
 
 
 # Configuration Constants
@@ -494,15 +503,28 @@ class RealtimeUpdateEngine:
 
 
 class NayDoeV1:
-    """Main NayDoeV1 Superior AI Assistant with comprehensive metrics and caching"""
+    """Main NayDoeV1 Superior AI Assistant with comprehensive metrics, caching, and autonomous capabilities"""
     
-    def __init__(self):
+    def __init__(self, enable_autonomous: bool = True):
         self.knowledge_base = KnowledgeBase()
         self.twin_brain = TwinBrain()
         self.rollback_system = RollbackSystem()
         self.update_engine = RealtimeUpdateEngine()
         self.start_time = time.time()
         self.performance_metrics = PerformanceMetrics()
+        
+        # Initialize autonomous system
+        self.autonomous_enabled = enable_autonomous and AUTONOMOUS_AVAILABLE
+        if self.autonomous_enabled:
+            self.autonomous_system = get_autonomous_system()
+            self.autonomous_system.log_operation(
+                "NayDoeV1",
+                "__init__",
+                LogLevel.INFO,
+                "System initialized with autonomous capabilities"
+            )
+        else:
+            self.autonomous_system = None
         
     def process_code(self, code: str, language: str) -> Dict[str, Any]:
         """
@@ -511,75 +533,173 @@ class NayDoeV1:
         - 40 parallel scenario analysis with batch processing
         - Real-time suggestions and warnings
         - Comprehensive performance metrics
+        - Autonomous logging, auditing, and error handling
         """
         start_time = time.time()
         
-        # Update metrics
-        self.performance_metrics.total_analyses += 1
-        self.performance_metrics.languages_used[language] += 1
+        # Log operation start
+        if self.autonomous_system:
+            self.autonomous_system.log_operation(
+                "NayDoeV1",
+                "process_code",
+                LogLevel.INFO,
+                f"Processing {language} code",
+                {"code_length": len(code), "language": language}
+            )
         
-        # Get language info in milliseconds (cached)
-        lang_info = self.knowledge_base.get_language_info(language)
-        cache_hit = bool(lang_info)
-        
-        if cache_hit:
-            self.performance_metrics.cache_hits += 1
-        else:
-            self.performance_metrics.cache_misses += 1
-        
-        # TwinBrain analyzes 40 scenarios with optimization
-        scenarios = self.twin_brain.analyze_code(code, language)
-        self.performance_metrics.total_scenarios_generated += len(scenarios)
-        
-        # Generate real-time suggestions
-        suggestions = self.update_engine.analyze_and_suggest(code, language)
-        
-        # Get best optimized outcome
-        best_scenario = self.twin_brain.get_best_scenario()
-        
-        processing_time_ms = (time.time() - start_time) * 1000
-        self.performance_metrics.total_processing_time_ms += processing_time_ms
-        self.performance_metrics.average_processing_time_ms = (
-            self.performance_metrics.total_processing_time_ms / 
-            self.performance_metrics.total_analyses
-        )
-        
-        return {
-            "success": True,
-            "processing_time_ms": round(processing_time_ms, 3),
-            "language": language,
-            "language_support": bool(lang_info),
-            "cache_hit": cache_hit,
-            "scenarios_analyzed": len(scenarios),
-            "best_scenario": asdict(best_scenario) if best_scenario else None,
-            "suggestions": [asdict(s) for s in suggestions],
-            "warnings": [asdict(s) for s in self.update_engine.get_critical_warnings()],
-            "monitoring_status": self.twin_brain.monitor_execution(),
-            "performance_snapshot": {
-                "avg_processing_time_ms": round(self.performance_metrics.average_processing_time_ms, 3),
-                "total_analyses": self.performance_metrics.total_analyses,
-                "cache_hit_rate": round(
-                    self.performance_metrics.cache_hits / 
-                    max(1, self.performance_metrics.cache_hits + self.performance_metrics.cache_misses),
-                    3
-                )
+        try:
+            # Update metrics
+            self.performance_metrics.total_analyses += 1
+            self.performance_metrics.languages_used[language] += 1
+            
+            # Get language info in milliseconds (cached)
+            lang_info = self.knowledge_base.get_language_info(language)
+            cache_hit = bool(lang_info)
+            
+            if cache_hit:
+                self.performance_metrics.cache_hits += 1
+            else:
+                self.performance_metrics.cache_misses += 1
+            
+            # TwinBrain analyzes 40 scenarios with optimization
+            scenarios = self.twin_brain.analyze_code(code, language)
+            self.performance_metrics.total_scenarios_generated += len(scenarios)
+            
+            # Generate real-time suggestions
+            suggestions = self.update_engine.analyze_and_suggest(code, language)
+            
+            # Get best optimized outcome
+            best_scenario = self.twin_brain.get_best_scenario()
+            
+            processing_time_ms = (time.time() - start_time) * 1000
+            self.performance_metrics.total_processing_time_ms += processing_time_ms
+            self.performance_metrics.average_processing_time_ms = (
+                self.performance_metrics.total_processing_time_ms / 
+                self.performance_metrics.total_analyses
+            )
+            
+            result = {
+                "success": True,
+                "processing_time_ms": round(processing_time_ms, 3),
+                "language": language,
+                "language_support": bool(lang_info),
+                "cache_hit": cache_hit,
+                "scenarios_analyzed": len(scenarios),
+                "best_scenario": asdict(best_scenario) if best_scenario else None,
+                "suggestions": [asdict(s) for s in suggestions],
+                "warnings": [asdict(s) for s in self.update_engine.get_critical_warnings()],
+                "monitoring_status": self.twin_brain.monitor_execution(),
+                "performance_snapshot": {
+                    "avg_processing_time_ms": round(self.performance_metrics.average_processing_time_ms, 3),
+                    "total_analyses": self.performance_metrics.total_analyses,
+                    "cache_hit_rate": round(
+                        self.performance_metrics.cache_hits / 
+                        max(1, self.performance_metrics.cache_hits + self.performance_metrics.cache_misses),
+                        3
+                    )
+                }
             }
-        }
+            
+            # Audit operation
+            if self.autonomous_system:
+                self.autonomous_system.audit_operation(
+                    "NayDoeV1",
+                    "process_code",
+                    {"language": language, "code_length": len(code)},
+                    {"success": True, "scenarios": len(scenarios)},
+                    processing_time_ms
+                )
+                
+                # Check if optimization should run
+                optimization_result = self.autonomous_system.check_and_optimize(
+                    self.get_system_status()
+                )
+                if optimization_result:
+                    result["autonomous_optimization"] = optimization_result
+            
+            return result
+            
+        except Exception as e:
+            # Handle error with autonomous system
+            if self.autonomous_system:
+                self.autonomous_system.handle_error(
+                    e,
+                    "NayDoeV1",
+                    "process_code",
+                    {"language": language, "code_length": len(code)},
+                    auto_heal=True
+                )
+            
+            # Return error result
+            return {
+                "success": False,
+                "error": str(e),
+                "error_handled": self.autonomous_enabled,
+                "processing_time_ms": (time.time() - start_time) * 1000
+            }
     
     def create_rollback_marker(self, description: str, code_state: Dict[str, str]) -> str:
-        """Create a rollback marker for current state"""
-        return self.rollback_system.create_marker(description, code_state)
+        """Create a rollback marker for current state with autonomous logging"""
+        if self.autonomous_system:
+            self.autonomous_system.log_operation(
+                "RollbackSystem",
+                "create_marker",
+                LogLevel.INFO,
+                f"Creating marker: {description}"
+            )
+        
+        try:
+            marker_id = self.rollback_system.create_marker(description, code_state)
+            
+            if self.autonomous_system:
+                self.autonomous_system.audit_operation(
+                    "RollbackSystem",
+                    "create_marker",
+                    {"description": description},
+                    {"marker_id": marker_id}
+                )
+            
+            return marker_id
+            
+        except Exception as e:
+            if self.autonomous_system:
+                self.autonomous_system.handle_error(e, "RollbackSystem", "create_marker", auto_heal=True)
+            raise
     
     def rollback(self, marker_id: str) -> bool:
-        """Rollback to a specific marker"""
-        return self.rollback_system.rollback_to_marker(marker_id)
+        """Rollback to a specific marker with autonomous logging"""
+        if self.autonomous_system:
+            self.autonomous_system.log_operation(
+                "RollbackSystem",
+                "rollback",
+                LogLevel.INFO,
+                f"Rolling back to marker: {marker_id}"
+            )
+        
+        try:
+            success = self.rollback_system.rollback_to_marker(marker_id)
+            
+            if self.autonomous_system:
+                self.autonomous_system.audit_operation(
+                    "RollbackSystem",
+                    "rollback",
+                    {"marker_id": marker_id},
+                    {"success": success}
+                )
+            
+            return success
+            
+        except Exception as e:
+            if self.autonomous_system:
+                self.autonomous_system.handle_error(e, "RollbackSystem", "rollback", auto_heal=True)
+            return False
     
     def list_rollback_markers(self) -> List[Dict[str, Any]]:
         """List all available rollback markers"""
         return self.rollback_system.list_markers()
     
     def get_system_status(self) -> Dict[str, Any]:
-        """Get comprehensive system status with detailed metrics"""
+        """Get comprehensive system status with detailed metrics and autonomous system status"""
         uptime = time.time() - self.start_time
         
         # Update peak memory markers
@@ -587,7 +707,7 @@ class NayDoeV1:
         if current_markers > self.performance_metrics.peak_memory_markers:
             self.performance_metrics.peak_memory_markers = current_markers
         
-        return {
+        status = {
             "status": "operational",
             "uptime_seconds": round(uptime, 2),
             "languages_supported": len(LanguageSupport),
@@ -603,6 +723,12 @@ class NayDoeV1:
             "twin_brain_performance": self.twin_brain.get_performance_summary(),
             "rollback_efficiency": self.rollback_system.get_efficiency_metrics()
         }
+        
+        # Add autonomous system status
+        if self.autonomous_system:
+            status["autonomous_system"] = self.autonomous_system.get_comprehensive_status()
+        
+        return status
 
 
 def main():
