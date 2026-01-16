@@ -1,0 +1,54 @@
+services:
+  naydoev1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: naydoev1:latest
+    container_name: naydoev1-assistant
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 128M
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Volume mounts for persistent data
+    volumes:
+      # Mount data directory for rollback markers and state
+      - naydoev1-data:/app/data
+      # Optional: Mount custom config
+      - ./config.json:/app/config.json:ro
+    
+    # Environment variables
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+      - PYTHONOPTIMIZE=1
+    
+    # Keep container running for interactive use
+    stdin_open: true
+    tty: true
+    
+    # Optional: Expose port for future HTTP API
+    # ports:
+    #   - "8000:8000"
+    
+    # Healthcheck
+    healthcheck:
+      test: ["CMD", "python3", "-c", "from naydoev1 import NayDoeV1; NayDoeV1()"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+# Named volumes for persistent data
+volumes:
+  naydoev1-data:
+    driver: local

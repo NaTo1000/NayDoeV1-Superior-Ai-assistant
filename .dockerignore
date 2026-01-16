@@ -1,0 +1,69 @@
+# Git
+.git/
+.gitignore
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+test_*.py
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build and distribution
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Temporary files
+/tmp/
+*.tmp
+*.bak
+
+# Documentation (except essential)
+CHANGELOG.md
+IMPLEMENTATION_SUMMARY.md
+CODEBASE_DETAILS.md
+
+# Environment files
+.env
+.env.*
+
+# Demos (not needed in production)
+demo.py
+examples.py
+performance_demo.py

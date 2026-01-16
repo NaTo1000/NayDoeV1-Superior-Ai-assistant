@@ -43,12 +43,116 @@ The next level in coding assistants. NayDoeV1 is an advanced AI coding assistant
 
 ## 📦 Installation
 
+### Native Installation
+
 ```bash
 git clone https://github.com/NaTo1000/NayDoeV1-Superior-Ai-assistant.git
 cd NayDoeV1-Superior-Ai-assistant
 ```
 
 No external dependencies required! Everything runs on Python standard library.
+
+### 🐳 Docker Installation
+
+#### Quick Start with Docker
+
+```bash
+# Build the Docker image
+docker build -t naydoev1 .
+
+# Run the container (interactive mode)
+docker run -it --rm naydoev1
+
+# Or use Docker Compose
+docker-compose up
+```
+
+#### Docker Build Instructions
+
+```bash
+# Build the image
+docker build -t naydoev1:latest .
+
+# Run with persistent data volume
+docker run -it --rm \
+  -v naydoev1-data:/app/data \
+  naydoev1:latest
+
+# Run in detached mode
+docker run -d \
+  --name naydoev1-assistant \
+  -v naydoev1-data:/app/data \
+  naydoev1:latest
+```
+
+#### Docker Compose Usage
+
+The easiest way to run NayDoeV1 in Docker:
+
+```bash
+# Start the service
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop the service
+docker-compose down
+
+# Stop and remove volumes
+docker-compose down -v
+```
+
+#### Environment Variables
+
+You can configure the following environment variables:
+
+- `PYTHONDONTWRITEBYTECODE=1` - Prevents Python from writing .pyc files (default: enabled)
+- `PYTHONUNBUFFERED=1` - Ensures immediate output logging (default: enabled)
+- `PYTHONOPTIMIZE=1` - Enables Python optimizations (default: enabled)
+
+Custom configuration via docker-compose.yml:
+
+```yaml
+environment:
+  - PYTHONDONTWRITEBYTECODE=1
+  - PYTHONUNBUFFERED=1
+  - PYTHONOPTIMIZE=1
+```
+
+#### Volume Mounts
+
+The Docker setup includes volume mounts for persistent data:
+
+- `/app/data` - Stores rollback markers and application state
+- `/app/config.json` - Optional custom configuration file (read-only)
+
+#### Resource Limits
+
+Default resource limits (configured in docker-compose.yml):
+
+- **CPU**: 2.0 cores (limit), 0.5 cores (reservation)
+- **Memory**: 512MB (limit), 128MB (reservation)
+
+Adjust these in docker-compose.yml based on your needs:
+
+```yaml
+deploy:
+  resources:
+    limits:
+      cpus: '2.0'
+      memory: 512M
+```
+
+#### Container Features
+
+- ✅ Multi-stage build for minimal image size (~100MB)
+- ✅ Non-root user for enhanced security
+- ✅ Health checks for container monitoring
+- ✅ Python optimization flags enabled
+- ✅ Persistent volume support for rollback markers
+- ✅ Configurable resource limits
+- ✅ Auto-restart policy
 
 ## 🎯 Quick Start
 
