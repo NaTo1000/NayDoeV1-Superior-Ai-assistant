@@ -58,7 +58,6 @@ wheels/
 CHANGELOG.md
 IMPLEMENTATION_SUMMARY.md
 CODEBASE_DETAILS.md
-DOCKER.md
 
 # Environment files
 .env

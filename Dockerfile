@@ -1,11 +1,13 @@
-# Multi-stage build for minimal final image
+# Multi-stage build for minimal final image (prepared for future dependencies)
 FROM python:3.11-slim AS builder
 
 # Set working directory
 WORKDIR /app
 
-# Create empty directory for potential future dependencies
-RUN mkdir -p /root/.local
+# Placeholder for future dependencies
+# If dependencies are added to requirements.txt, install them here:
+# COPY requirements.txt .
+# RUN pip install --no-cache-dir --user -r requirements.txt
 
 # Final stage - minimal runtime image
 FROM python:3.11-slim
@@ -16,14 +18,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONOPTIMIZE=1
 
 # Create non-root user for security
-RUN groupadd -r naydoe && useradd -r -g naydoe naydoe && \
-    mkdir -p /home/naydoe/.local
+RUN groupadd -r naydoe && useradd -r -g naydoe naydoe
 
 # Set working directory
 WORKDIR /app
-
-# Copy Python packages from builder (if any were installed)
-COPY --from=builder --chown=naydoe:naydoe /root/.local /home/naydoe/.local
 
 # Copy application source files
 COPY naydoev1.py .
@@ -32,6 +30,7 @@ COPY README.md .
 COPY QUICKSTART.md .
 COPY API.md .
 COPY LICENSE .
+COPY DOCKER.md .
 
 # Create directory for persistent data (rollback markers)
 RUN mkdir -p /app/data && chown -R naydoe:naydoe /app

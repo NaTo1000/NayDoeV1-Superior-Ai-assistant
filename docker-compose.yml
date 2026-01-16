@@ -23,8 +23,8 @@ services:
     volumes:
       # Mount data directory for rollback markers and state
       - naydoev1-data:/app/data
-      # Optional: Mount custom config
-      - ./config.json:/app/config.json:ro
+      # Optional: Mount custom config (remove or comment out if not needed)
+      # - ./config.json:/app/config.json:ro
     
     # Environment variables
     environment:

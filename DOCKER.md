@@ -66,7 +66,7 @@ docker run -v ./custom-config.json:/app/config.json:ro naydoev1:latest
 
 ## Resource Management
 
-### Default Limits (docker-compose.yml)
+### Default Limits (docker compose.yml)
 
 - **Memory Limit**: 512MB
 - **Memory Reservation**: 128MB
@@ -81,7 +81,7 @@ Using Docker CLI:
 docker run --memory="512m" --cpus="2.0" naydoev1:latest
 ```
 
-Using docker-compose.yml, modify:
+Using docker compose.yml, modify:
 
 ```yaml
 deploy:
@@ -224,7 +224,7 @@ docker run --rm -v naydoev1-data:/app/data naydoev1:latest ls -la /app/data
 
 ### Memory Issues
 
-Increase memory limit in docker-compose.yml or CLI:
+Increase memory limit in docker compose.yml or CLI:
 ```bash
 docker run --memory="1g" naydoev1:latest
 ```
