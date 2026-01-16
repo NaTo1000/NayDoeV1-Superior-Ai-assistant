@@ -89,6 +89,8 @@ docker run -d \
 
 The easiest way to run NayDoeV1 in Docker:
 
+**Note:** Docker Compose must be run from the project root directory.
+
 ```bash
 # Start the service
 docker-compose up -d
@@ -146,7 +148,7 @@ deploy:
 
 #### Container Features
 
-- ✅ Multi-stage build for minimal image size (~100MB)
+- ✅ Multi-stage build for minimal image size (~125MB)
 - ✅ Non-root user for enhanced security
 - ✅ Health checks for container monitoring
 - ✅ Python optimization flags enabled

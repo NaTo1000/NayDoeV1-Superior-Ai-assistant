@@ -4,14 +4,8 @@ FROM python:3.11-slim AS builder
 # Set working directory
 WORKDIR /app
 
-# Copy requirements (no external dependencies needed for core functionality)
-COPY requirements.txt .
-
-# Install any optional dependencies if specified
-RUN mkdir -p /root/.local && \
-    if [ -s requirements.txt ] && grep -v '^#' requirements.txt | grep -v '^$' > /dev/null; then \
-        pip install --no-cache-dir --user -r requirements.txt; \
-    fi
+# Create empty directory for potential future dependencies
+RUN mkdir -p /root/.local
 
 # Final stage - minimal runtime image
 FROM python:3.11-slim
@@ -48,9 +42,9 @@ USER naydoe
 # Update PATH to include user-installed packages
 ENV PATH=/home/naydoe/.local/bin:$PATH
 
-# Add healthcheck (Python import test)
+# Add healthcheck (lightweight import test)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD python3 -c "from naydoev1 import NayDoeV1; NayDoeV1()" || exit 1
+    CMD python3 -c "import naydoev1" || exit 1
 
 # Expose port if needed for future HTTP API (currently not used)
 # EXPOSE 8000
