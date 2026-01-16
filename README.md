@@ -351,6 +351,7 @@ NayDoeV1 is ready and operational!
 
 ## 🆕 Additional Documentation
 
+- **[DOCKER.md](DOCKER.md)** - Comprehensive Docker deployment guide
 - **[CODEBASE_DETAILS.md](CODEBASE_DETAILS.md)** - Comprehensive architecture and implementation details
 - **[performance_demo.py](performance_demo.py)** - Interactive performance demonstration
 - **API.md** - Complete API reference
